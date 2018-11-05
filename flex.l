@@ -5,37 +5,57 @@
 #include <stdlib.h>
 #include <math.h>
 
+// find_position is uesd to find the exact position of a given character (eg. 'E' or 'e' in the scientific notation)
 int find_position(char* stream, int size, const char target);
 
+// compute_pow is used to compute the exponent part in the scientific notation
 float compute_pow(int base, int exponent);
 
-float convert_from_pow_to_float(char* stream, int size);
+// convert_from_sci_to_float is used to compute the float from the string form, such like  '1.23e-3'
+//first it identifies the decimal point, then uses convert_from_str_to_float to get the final value  
+float convert_from_sci_to_float(char* stream, int size);
 
+// convert_from_str_to_float is used to compute the float from the string form, such like '1.224' 
 float convert_from_str_to_float(char* stream, int size);
 
+// compute_expression is used to compute the value of the expression which is combined by numbers in float form 
 float compute_expression(char* stream, int size);
 
+/*
+digit is used to identify a integer
+signed_digit is used to identify negative integer and integer with positive sign
+float is used to identify numbers with a decimal point
+sci_notation is used to identify the numbers which in scientific notation form(eg.xxxx.xxxx e (-)yyy)
+float_expression is used to identify the expression needed to be computed
+identifier is used to identify the identifier that may appeas in an expression(eg.wdf_3 in the expression wdf_3+5+3e-5)
+*/
 %}
-
 digit            [0-9]+
+ 
 signed_digit     (-)?[0-9]+
-float            [0-9]+(.)?[0-9]*
-sci_notation     {float}([eE]{signed_digit})?
-expression       {sci_notation}([+|-]{sci_notation})* 
 
+float            [0-9]+(.)?[0-9]*
+
+sci_notation     {float}([eE]{signed_digit})?
+
+float_expression       {sci_notation}([+|-]{sci_notation})*
+
+identifier       [a-zA-Z]+[0-9a-zA-Z]*  
 %%
-{expression}     {float result = compute_expression(yytext,yyleng);
+
+{identifier}     ECHO;
+{float_expression}     {float result = compute_expression(yytext,yyleng);
                   printf("%.3f",result);
 				 }
 .                ECHO;
-[\t|\n]          ECHO;
+[\t\n]*          ECHO;
                      
 %%
 int  find_position(char* stream, int size, const char target){
      int i = 0;
 	 for (i = 0;i<size;i++){
 	     if(stream[i] == target)
-		    return i ;
+		    break;
 	 }
 	 return i;
 }
@@ -48,22 +68,32 @@ float compute_pow(int base, int exponent){
 	     for(i = 0; i < exponent; i++)
 		     result = result * base;
 	  }
-	  else {
+
+	  if(exponent < 0){
 	     for(i = 0; i < -exponent; i++)
 		     result = result / base;
       }
 
 	  return result;
 }
-float convert_from_pow_to_float(char* stream, int size){
-      float pre_exp_num = 0, exp_num = 0, result = 0, exp_num_result = 0;
-	  int pos_E = 0, pos_exp = 0; 
+
+float convert_from_sci_to_float(char* stream, int size){
+//in '1.23e5', pre_exp_num = '1.23', exp_num = '5'
+//exp_num_result = e5 = 10000, result = 12300
+      float pre_exp_num = 0, exp_num = 0, exp_num_result = 0, result = 0;
+	  int pos_E = 0, pos_e = 0, pos_exp = 0; 
 	  
 	  pos_E = find_position(stream,size,'E') ;
-	  pos_exp = (pos_E == size) ? find_position(stream,size,'e') : pos_E;
-      
+	  pos_e = find_position(stream,size,'e') ;
+	  
+	  if (pos_E == size)
+	     pos_exp = pos_e;
+      else 
+	     pos_exp = pos_E;
+	        
 	  pre_exp_num = convert_from_str_to_float(stream, pos_exp);
-	  if(pos_exp < size)
+
+	  if(pos_exp < size)//means this number has exponent part
 	     exp_num = convert_from_str_to_float(stream + pos_exp + 1, size - pos_exp - 1);
 	  else 
 	     exp_num = 0;
@@ -76,7 +106,8 @@ float convert_from_pow_to_float(char* stream, int size){
 
 float convert_from_str_to_float(char* stream, int size){
       float result = 0, result_dot = 0;
-	  int flag = 1;//there is no such bool,so we use flag to indicate the number is positive or not
+	  //lack bool class, so we use int flag to indicate the number is positive or negative
+	  int flag = 1;
 	  int pos_dot = 0, i = 0;
 
 	  if(stream[0] == '-'){
@@ -97,9 +128,9 @@ float convert_from_str_to_float(char* stream, int size){
 	     result = result * 10 + (stream[i] - '0');
 	  
 	  for(i = size-1; i > pos_dot; i--)
-	     result_dot = result_dot / 10.0 + (stream[i]-'0');
+	     result_dot = result_dot / 10 + (stream[i]-'0');
 
-	  result = result + result_dot / 10.0;
+	  result = result + result_dot / 10;
 
 	  result = (flag == 1)? result : (-result);
 
@@ -114,16 +145,20 @@ float compute_expression(char* stream, int size){
 	     return 0;
 	  
 	  pos_sym_sum = find_position(stream+1, size-1,'+') + 1;
+	  //expressions like 5e+5+3.5+9.006 and so on may appear
+	  //which means the float has '+' after 'e'or'E' shouldn't be identified as expression
 	  while (stream[pos_sym_sum - 1] == 'e' || stream[pos_sym_sum - 1] == 'E')
 	        pos_sym_sum += find_position(stream + pos_sym_sum + 1, size - 1 - pos_sym_sum, '+') + 1;
 	  
 	  pos_sym_sub = find_position(stream+1, size-1, '-') +1 ;
+	  //expressions like 5e-3-3.5-9.006 and so on may appear
+	  //which also means the float has '-' after 'e'or'E' shouldn't be identified as expression
 	  while (stream[pos_sym_sub - 1] == 'e' || stream[pos_sym_sub - 1] =='E')
-	        pos_sym_sub += find_position(stream + pos_sym_sub + 1, size - 1 - pos_sym_sub, '-') - 1;
-
+	        pos_sym_sub += find_position(stream + pos_sym_sub + 1, size - 1 - pos_sym_sub, '-') + 1;
+     
 	  mid_stop = (pos_sym_sum > pos_sym_sub)? pos_sym_sub : pos_sym_sum;
 
-	  mid_result = convert_from_pow_to_float(stream, mid_stop);
+	  mid_result = convert_from_sci_to_float(stream, mid_stop);
 
 	  return mid_result + compute_expression(stream + mid_stop, size - mid_stop);
 
