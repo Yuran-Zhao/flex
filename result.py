@@ -1,12 +1,14 @@
 #!/usr/bin/env python 
       
 def  main():
-    a = 10000000000.000
-    b = 0.050
-    c = 579.000
-    d = 3399.950
-    e = 45.730
-    print a,b,c,d,e
+    a1 = 0.03
+    a = 10000000000.0
+    b = 0.05
+    c = 579
+    d = 3399.95
+    e = 45.73
+    f = a_1 + 800.0
+    print a,b,c,d,e,f
 
 if   __name__  ==  '__main__':
     main()  
