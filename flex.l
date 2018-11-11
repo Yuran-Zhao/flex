@@ -47,7 +47,7 @@ exp_notation     {double}([eE]{signed_digit})?
 
 double_expression       {exp_notation}([+|-]{exp_notation})*
 
-identifier       [a-zA-Z]+[0-9a-zA-Z|_]*  
+identifier       [a-zA-Z]+[0-9a-zA-Z_]*  
 %%
 
 {identifier}     ECHO;
