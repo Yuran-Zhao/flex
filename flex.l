@@ -282,6 +282,8 @@ void print_result(double result) {
 	//delete '0's in the end
 	while (re[i - 1] == '0' ) {
 	    //if only one zero after the decimal point, reserve it
+		if(final_bit == 0)
+		   break;
 	    if(re[i - 2] == '.')
 		   break;
 		re[i - 1] = '\0';
